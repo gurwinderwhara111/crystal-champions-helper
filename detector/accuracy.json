@@ -1,0 +1,16 @@
+{
+ "cells": 384,
+ "rule_accuracy": 0.9973958333333334,
+ "centroid_accuracy": 0.8359375,
+ "shape_accuracy": 0.8255208333333334,
+ "errors": [
+  {
+   "image": "112522",
+   "row": 5,
+   "col": 8,
+   "truth": "orange",
+   "pred": "yellow",
+   "conf": 0.35
+  }
+ ]
+}

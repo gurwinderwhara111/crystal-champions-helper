@@ -1,0 +1,87 @@
+{
+  "_comment": "Ground truth transcribed by visual inspection of the original screenshots (not from the detector). Types only; variant ground truth for the cells we are certain about is listed separately.",
+  "112400": {
+    "types": [
+      ["green","white","purple","white","green","white","green","purple"],
+      ["blue","yellow","blue","blue","green","white","purple","blue"],
+      ["red","blue","yellow","red","blue","red","white","orange"],
+      ["orange","yellow","white","blue","purple","green","orange","orange"],
+      ["yellow","yellow","blue","purple","red","white","white","green"],
+      ["red","red","orange","white","white","purple","red","green"],
+      ["purple","green","green","orange","blue","green","blue","blue"],
+      ["blue","purple","white","blue","blue","white","purple","blue"]
+    ],
+    "cage": [[2,3],[3,1],[3,2],[3,3],[5,4],[5,5],[7,2],[7,5]],
+    "swirl": []
+  },
+  "112414": {
+    "types": [
+      ["green","orange","purple","white","green","white","green","purple"],
+      ["blue","red","blue","blue","green","white","purple","blue"],
+      ["red","green","blue","red","blue","red","white","orange"],
+      ["orange","white","white","blue","purple","green","orange","orange"],
+      ["yellow","yellow","blue","purple","red","white","white","green"],
+      ["red","red","orange","white","white","purple","red","green"],
+      ["purple","green","green","orange","blue","green","blue","blue"],
+      ["blue","purple","white","blue","blue","white","purple","blue"]
+    ],
+    "cage": [[2,3],[2,4],[3,2],[3,3],[5,4],[5,5],[7,2],[7,5]],
+    "swirl": [[5,2]]
+  },
+  "112444": {
+    "types": [
+      ["green","orange","purple","yellow","yellow","blue","green","purple"],
+      ["blue","red","white","white","green","yellow","purple","blue"],
+      ["red","green","orange","blue","green","purple","red","orange"],
+      ["orange","white","blue","red","blue","green","orange","orange"],
+      ["yellow","yellow","blue","white","red","white","white","green"],
+      ["red","red","orange","white","white","purple","red","green"],
+      ["purple","green","green","orange","blue","green","blue","blue"],
+      ["blue","purple","white","blue","blue","white","purple","blue"]
+    ],
+    "cage": [[7,2],[7,5]],
+    "swirl": [[5,2],[5,3]]
+  },
+  "112522": {
+    "types": [
+      ["green","orange","blue","blue","green","orange","red","purple"],
+      ["blue","red","orange","orange","red","white","yellow","purple"],
+      ["red","green","red","white","orange","blue","green","blue"],
+      ["orange","white","orange","yellow","green","blue","purple","orange"],
+      ["yellow","yellow","blue","white","green","yellow","purple","orange"],
+      ["red","red","orange","white","white","green","orange","green"],
+      ["purple","green","green","orange","green","purple","red","green"],
+      ["blue","purple","white","blue","blue","white","purple","blue"]
+    ],
+    "cage": [[7,2],[7,5]],
+    "swirl": [[5,2],[5,3],[6,5]]
+  },
+  "112536": {
+    "types": [
+      ["green","orange","blue","blue","green","orange","red","purple"],
+      ["blue","red","orange","orange","red","white","yellow","purple"],
+      ["red","green","red","white","orange","blue","green","blue"],
+      ["orange","white","orange","yellow","green","blue","purple","orange"],
+      ["yellow","yellow","blue","white","green","yellow","purple","orange"],
+      ["red","red","orange","white","white","green","orange","green"],
+      ["purple","green","green","orange","green","purple","red","green"],
+      ["blue","purple","white","blue","blue","white","purple","blue"]
+    ],
+    "cage": [[7,2],[7,5]],
+    "swirl": [[5,2],[5,3],[6,5]]
+  },
+  "112600": {
+    "types": [
+      ["white","white","purple","red","white","green","orange","orange"],
+      ["green","purple","orange","red","purple","purple","red","green"],
+      ["yellow","yellow","orange","orange","red","white","yellow","green"],
+      ["purple","white","red","yellow","green","purple","green","purple"],
+      ["yellow","yellow","purple","orange","purple","yellow","purple","orange"],
+      ["red","orange","green","orange","orange","green","orange","orange"],
+      ["red","red","orange","red","green","white","red","green"],
+      ["green","purple","white","orange","red","white","purple","green"]
+    ],
+    "cage": [],
+    "swirl": []
+  }
+}

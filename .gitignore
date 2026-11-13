@@ -1,0 +1,18 @@
+# --- game recordings (large, not needed for the repo) ---
+*.mp4
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- local runtime state ---
+*.log
+detector/verify/tmp_*
+.cool/
+config.local.json
+
+# --- os ---
+Thumbs.db
+desktop.ini
