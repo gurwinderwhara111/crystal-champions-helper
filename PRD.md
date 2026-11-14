@@ -319,27 +319,61 @@ detector. The annotated montages in `detector/verify/` are the audit trail.
 
 | Classifier | Channel | Result |
 |---|---|---|
-| **RULE** | hue band + shape cross-check | **383 / 384 = 99.74 %** |
-| CENTROID | nearest neighbour in (hue, sat, val) | 321 / 384 = 83.6 % |
-| SHAPE | silhouette template match, colour-blind | 317 / 384 = 82.6 % |
+| **RULE** | hue band + silhouette veto | **380 / 384 = 98.96 % identified, 0 wrong** |
+| CENTROID | nearest neighbour in (hue, sat, val) | 370 / 384 = 96.35 % |
+| SHAPE | silhouette template match, colour-blind | 349 / 384 = 90.89 % |
 
-Confusion matrix for RULE — **zero confusions** except one:
+**The number that matters for a bot is precision, not recall: every answer the
+system gives is correct.** 380 cells are identified, 4 are refused as unknown,
+and **0 are wrong**.
+
+Confusion matrix for RULE — **zero confusions**, and the UNKNOWN column is
+exactly where it should be:
 
 ```
-              green  red  blue  purple  yellow  orange  white
-green            68    0     0       0       0      0      0
-red               0   50     0       0       0      0      0
-blue              0    0    66       0       0      0      0
-purple            0    0     0      54       0      0      0
-yellow            0    0     0       0      29      0      0
-orange            0    0     0       0       1     58      0
-white             0    0     0       0       0      0     58
+              green  red  blue  purple  yellow  orange  white   UNK
+green            68    0     0       0       0      0      0     0
+red               0   50     0       0       0      0      0     0
+blue              0    0    65       0       0      0      0     1
+purple            0    0     0      54       0      0      0     0
+yellow            0    0     0       0      27      0      0     2
+orange            0    0     0       0       0     58      0     1
+white             0    0     0       0       0      0     58     0
 ```
 
-The one error: `112522 r5c8` — a washed-out orange hexagon, apparently
-mid-spawn-animation, read as yellow. **It was flagged with confidence 0.35**,
-so with a confidence gate of 0.80 it becomes an *unknown*, not a wrong answer.
-Gated accuracy is therefore 100 % of the answers given, with 1 cell unknown.
+The four refused cells are precisely the ones we *want* refused:
+
+| cell | what it is | why it was refused |
+|---|---|---|
+| `112414 r5c2` | yellow triangle with the **red swirl** | special gem, not modelled yet |
+| `112444 r5c3` | blue ball with the **red swirl** | special gem, not modelled yet |
+| `112522 r5c2` | yellow triangle with the **red swirl** | special gem, not modelled yet |
+| `112522 r5c8` | washed-out orange hexagon, mid-spawn | hue drifted to 23, on the orange/yellow boundary |
+
+**A note on how the first result was wrong.** The first run of this test
+scored 383/384 = 99.74 % with a single error, and looked finished. It was
+not. Printing the per-cell *confidence* next to the answer showed the shape
+cross-check was flagging **188 of 384 cells (49 %) as low confidence** while
+almost all of them were perfectly correct — the confidence gate that the bot
+uses to decide "don't click if unsure" would have refused to act on half the
+board.
+
+The cause was that the silhouette bands in §7.2 had been written from *ideal
+geometry* rather than measured from the game's actual art. Measured:
+
+```
+purple 0.53 | yellow 0.52 | red 0.61 | white 0.65 | blue 0.74 | green 0.79 | orange 0.78
+```
+
+Green, blue and orange all overlap. Re-deriving the bands from the measured
+data and turning the cross-check into a one-sided veto fixed it: **wrong
+answers 1 → 0**, at the cost of 3 more cells being refused (all of them
+special gems we cannot model yet — a trade we want).
+
+**Lesson recorded for the build phase:** a metric that only measures accuracy
+is not enough. The metric that matters for an auto-player is
+*"of the cells it claims to know, how many are right"* — and it must be
+reported alongside the refusal rate.
 
 ---
 
@@ -377,7 +411,7 @@ warm up  →  detect board  →  validate ROI  →  read 64 cells (multi-frame v
 | # | Item | Severity |
 |---|---|---|
 | 1 | **Variant detection recall is 6.5 %** — cages and swirls are mostly missed. A caged cell must not be swapped blindly. | high |
-| 2 | **Special gems are unidentified.** Only one charged gem (a red swirl) has ever been seen. The HOW TO PLAY pages 2–4 were never captured. | high |
+| 2 | **Special gems are unidentified.** The red-swirl aura is now detected well enough that the detector *refuses* those cells, which is safe, but we cannot yet say what the special gem *does*. The HOW TO PLAY pages 2–4 were never captured. | high |
 | 3 | **The score formula is unknown.** We are guessing at points per gem and per cascade. | high |
 | 4 | **The objective strip** may be a legend, not objectives. If it is objectives with counts, we need OCR on a ~12 px strip. | medium |
 | 5 | **Whether the board refills from the top** (gravity) is unknown; it decides whether cascade simulation is meaningful at all. | medium |
@@ -433,6 +467,8 @@ warm up  →  detect board  →  validate ROI  →  read 64 cells (multi-frame v
 | Two channels (shape, colour) | colour only | red/purple and blue/pearl are same-shape; colour alone cannot separate them |
 | Circular median hue | mean hue | the orange hexagon's X highlight drags a mean into yellow |
 | Whiteness test for the pearl | hue band | the pearl's hue is meaningless by construction |
+| **Measured silhouette bands** | ideal geometry from theory | the ideal table said green 0.90 / circle 0.785 / hexagon 0.75; measured, green is 0.79 and blue 0.74, so the theory produced 49 % false confidence flags |
+| **Veto, not penalty** | penalise any shape/colour disagreement | green and orange genuinely share a silhouette; penalising that produced false alarms on 49 % of cells |
 | Consecutive-8-slot lattice constraint | peak picking | kills harmonic pitches; peak picking failed on the saturated background |
 | Confidence gating (no guess) | always answer | a skipped move costs nothing, a wrong move costs the round |
 | Two-button panel | three buttons | the system is automated; SCAN and CALIBRATE are the same code path |

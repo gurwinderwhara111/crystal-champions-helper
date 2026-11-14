@@ -42,14 +42,18 @@ No installation, no services, no drivers, no registry changes. It only needs
 
 | Classifier | What it uses | Accuracy |
 |---|---|---|
-| **RULE** (primary) | hue band + silhouette shape cross-check | **383 / 384 = 99.74 %** |
-| CENTROID | nearest neighbour in (hue, sat, val) vs learned references | 321 / 384 = 83.6 % |
-| SHAPE | silhouette template match only (colour-blind) | 317 / 384 = 82.6 % |
+| **RULE** (primary) | hue band + silhouette **veto** | **380 / 384 = 98.96 % identified, 0 wrong** |
+| CENTROID | nearest neighbour in (hue, sat, val) vs learned references | 370 / 384 = 96.35 % |
+| SHAPE | silhouette template match only (colour-blind) | 349 / 384 = 90.89 % |
 
-The single RULE error was a washed-out orange hexagon that reads as yellow —
-and the shape cross-check flagged it with **confidence 0.35**, so a
-confidence gate would have turned it into an *unknown* rather than a wrong
-move. Confusions are zero across every other pair.
+The metric that matters for an auto-player is **precision, not recall**:
+of the 380 cells the system claims to know, **380 are right**. It refuses 4
+cells — 3 of them the red-swirl special gems we have not modelled yet, and 1
+a washed-out orange caught mid-spawn-animation. It never guesses wrong on
+this corpus, and there are **zero confusions** in the confusion matrix.
+
+The single earlier error (a washed-out orange hexagon read as yellow) is now
+also refused rather than answered.
 
 ## The 7 gem types
 

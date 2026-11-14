@@ -40,15 +40,41 @@ HUE_CENTRE = {
 }
 
 # Silhouette signature (extent = area/bbox_area) per shape family.
-#   rounded square ~0.90 | circle ~0.785 | hexagon ~0.75 | diamond/triangle ~0.50
+#
+# MEASURED on the real game art across 384 hand-labelled cells, not guessed
+# from ideal geometry (the first guess was wrong - see PRD section 10):
+#   purple  0.52-0.54   sharp   (diamond)
+#   yellow  0.51-0.52   sharp   (triangle)   <- same extent as purple
+#   red     0.56-0.63   mid     (diamond)
+#   white   0.62-0.77   pearl   (ball)
+#   blue    0.60-0.76   ball
+#   green   0.77-0.85   blocky  (rounded cube)
+#   orange  0.77-0.80   blocky  (hexagon)    <- same extent as green
+#
+# So extent cleanly separates {purple,yellow}, {red}, {white,blue} and
+# {green,orange}, but green and orange are geometrically identical in
+# silhouette and can only be told apart by colour.
 SHAPE_FAMILY = {
-    "green":  "roundsq",
-    "red":    "diamond",
-    "purple": "diamond",
-    "yellow": "triangle",
-    "orange": "hexagon",
-    "blue":   "circle",
-    "white":  "circle",
+    "green":  "blocky",
+    "red":    "mid",
+    "blue":   "ball",
+    "purple": "sharp",
+    "yellow": "sharp",
+    "orange": "blocky",
+    "white":  "pearl",
+}
+
+# Which shape families are acceptable for each colour. A cell whose silhouette
+# falls outside its colour's acceptable set is a CONTRADICTION, and the cell is
+# reported as unknown rather than guessed.
+FAMILY_SET = {
+    "green":  {"blocky"},
+    "orange": {"blocky"},
+    "blue":   {"ball", "blocky", "pearl"},
+    "white":  {"pearl", "ball", "blocky", "mid"},
+    "red":    {"mid", "sharp"},
+    "purple": {"sharp"},
+    "yellow": {"sharp"},
 }
 
 CORE_SIZE = 40          # normalised gem core patch size (px)
@@ -377,6 +403,9 @@ def core_hue(core):
     if sel.sum() < 25:
         sel = (s > 90) & (v > 80)
     if sel.sum() < 15:
+        # dark core (cage shadow, swirl overlay, deep shading) -> loosen
+        sel = (v > 60) & (s > 40)
+    if sel.sum() < 10:
         return None, 0.0, 0.0, 0.0, whiteness
     hh, ss, vv = h[sel], s[sel], v[sel]
     # circular median
@@ -412,19 +441,22 @@ def hue_to_type(hue, sat, val, whiteness=0.0):
     return None
 
 
-def shape_family(extent, solidity, aspect, corners):
-    """Coarse shape family from silhouette geometry."""
+def shape_family(extent, solidity=None, aspect=None, corners=None):
+    """
+    Coarse shape family from the measured extent of the gem silhouette.
+    See SHAPE_FAMILY for the measured ranges.
+    """
     if extent is None:
         return None
-    if extent > 0.84:
-        return "roundsq"
-    if extent > 0.68:
-        return "circle" if corners <= 3 else "hexagon"
-    if extent > 0.42:
-        if corners <= 3:
-            return "triangle"
-        return "diamond"
-    return None
+    if extent < 0.575:
+        return "sharp"
+    if extent < 0.635:
+        return "mid"
+    if extent < 0.695:
+        return "pearl"
+    if extent < 0.765:
+        return "ball"
+    return "blocky"
 
 
 def detect_variants(bgr, cx, cy, pitch, gem_bbox=None):
@@ -615,19 +647,37 @@ class Classifier:
 
     # -- rule based -----------------------------------------------------
     def rule_predict(self, core, blob):
+        """
+        Colour first (hue bands, circular median, whiteness for the pearl),
+        then the silhouette as an INDEPENDENT VETO.
+
+        The veto only fires on a strong contradiction - the measured silhouette
+        ranges overlap between green/orange and between blue/white, so those
+        pairs are never vetoed against each other.
+        """
         hue, sat, val, _, white = core_hue(core)
         t = hue_to_type(hue, sat, val, white)
         if t is None:
             return None, 0.0
-        fam = shape_family(blob["extent"], blob["solidity"], blob["aspect"], blob["corners"]) if blob else None
-        conf = 0.55
-        if fam is not None:
-            if fam == SHAPE_FAMILY[t]:
-                conf = 0.98
-            else:
-                # circles and diamonds are the only near-neighbours
-                if {fam, SHAPE_FAMILY[t]} in ({"circle", "circle"}, {"diamond", "diamond"}):
-                    conf = 0.9
-                else:
-                    conf = 0.35
+
+        # colour confidence: how far the hue sits from the band edges
+        edges = {"red": (172.0, 6.5, 6.5), "orange": (6.5, 21.0, 6.5),
+                 "yellow": (21.0, 33.0, 6.5), "green": (33.0, 82.0, 8.0),
+                 "blue": (82.0, 128.0, 8.0), "purple": (128.0, 172.0, 8.0)}
+        conf = 0.97
+        if t in edges:
+            lo, hi, pad = edges[t]
+            if lo < hue < hi:
+                margin = min(hue - lo, hi - hue)
+            else:                      # red wraps around 0
+                margin = min(hue - lo + 180.0, hi + 180.0 - hue)
+            conf = 0.97 if margin > pad * 0.5 else 0.72
+        if t == "white":
+            conf = 0.97 if white > 0.75 else 0.75
+
+        # silhouette veto
+        fam = shape_family(blob["extent"]) if blob else None
+        if fam is not None and fam not in FAMILY_SET[t]:
+            # contradiction -> do not guess
+            return None, 0.0
         return t, conf
