@@ -57,9 +57,12 @@ def analyse(im, verbose=False):
     for (cx, cy) in board["centres"]:
         core, _ = gv.cell_core(im, cx, cy, board["pitch"])
         blob = gv.cell_blob(im, cx, cy, board["pitch"])
+        sil = gv.cell_silhouette(im, cx, cy, board["pitch"])
         flags = gv.detect_variants(im, cx, cy, board["pitch"],
                                    blob["bbox"] if blob else None)
         cells.append({"cx": cx, "cy": cy, "core": core, "blob": blob,
+                      "sil": sil,
+                      "patch": gv.gem_patch(im, cx, cy, board["pitch"], sil),
                       "flags": flags})
     return {"board": board, "cells": cells}
 
@@ -89,7 +92,8 @@ def build_references(images):
         if cell["core"] is None:
             print(f"  !! seed {t} has no core")
             continue
-        samples[t].append({"core": cell["core"], "silh": gv.silhouette(cell["blob"])})
+        samples[t].append({"core": cell["core"], "silh": gv.silhouette(cell["blob"]),
+                            "patch": cell["patch"]})
         print(f"  seed {t:7s} <- {fname} r{r}c{c}")
 
     # pass 2: harvest confident cells
@@ -108,7 +112,8 @@ def build_references(images):
             if len(samples[t]) >= 12:
                 continue
             samples[t].append({"core": cell["core"],
-                               "silh": gv.silhouette(cell["blob"])})
+                               "silh": gv.silhouette(cell["blob"]),
+                               "patch": cell["patch"]})
             added += 1
     print(f"  harvested {added} additional confident reference cells")
     return gv.Classifier.build_refs(samples)
