@@ -16,3 +16,35 @@ config.local.json
 # --- os ---
 Thumbs.db
 desktop.ini
+
+# --- generated debug data (large, not needed for repo) ---
+detector/debug_*.png
+detector/debug_*/*.png
+detector/debug_cells/
+detector/video_refs/
+detector/dataset/
+detector/video_refs.pkl
+
+# --- runtime config (local, not committed) ---
+detector/roi.json
+detector/hud_roi.json
+detector/accuracy.json
+detector/detection_results.json
+
+# --- experiment / scratch ---
+experiment1/
+detector/check_frames.py
+detector/debug_cells.py
+detector/debug_global_clf.py
+detector/analyze_failures.py
+detector/debug_cells/
+detector/debug_*.png
+detector/debug_*/
+detector/video_refs/
+detector/dataset/
+detector/video_refs.pkl
+
+# --- panel / runtime ---
+panel/overlay_v2.py
+panel/run_panel.cmd
+detector/run_collect.cmd
