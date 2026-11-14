@@ -7,8 +7,8 @@ It reads the board straight off the screen with **MSS**, works out what every
 gem is (shape **and** colour), and — in the full build — plans the best swap
 and plays it with two synthetic taps.
 
-> **Status:** the **detection** stage is finished and measured (99.74 % type
-> accuracy over 384 hand-labelled cells). The planner, the overlay panel and
+> **Status:** the **detection** stage is finished and measured (98.96 % of 384
+> hand-labelled cells identified, 0 wrong). The planner, the overlay panel and
 > the auto-play loop are specified in [`PRD.md`](PRD.md) but not built yet.
 
 ---
@@ -45,32 +45,45 @@ No installation, no services, no drivers, no registry changes. It only needs
 | **RULE** (primary) | hue band + silhouette **veto** | **380 / 384 = 98.96 % identified, 0 wrong** |
 | CENTROID | nearest neighbour in (hue, sat, val) vs learned references | 370 / 384 = 96.35 % |
 | SHAPE | silhouette template match only (colour-blind) | 349 / 384 = 90.89 % |
+| TEMPLATE | full-appearance template match (outline + engraving + colour) | 357 / 384 = 92.97 % |
 
 The metric that matters for an auto-player is **precision, not recall**:
 of the 380 cells the system claims to know, **380 are right**. It refuses 4
-cells — 3 of them the red-swirl special gems we have not modelled yet, and 1
-a washed-out orange caught mid-spawn-animation. It never guesses wrong on
-this corpus, and there are **zero confusions** in the confusion matrix.
+cells — 3 of them the red-swirl special gems we have not modelled yet (the
+swirl distorts the measured shape, so the veto fires), and 1 a washed-out
+orange caught mid-spawn-animation. It never guesses wrong on this corpus, and
+there are **zero confusions** in the confusion matrix.
 
 The single earlier error (a washed-out orange hexagon read as yellow) is now
 also refused rather than answered.
 
 ## The 7 gem types
 
-| Type | Shape | Colour (OpenCV H) |
-|---|---|---|
-| green | rounded cube | ~55 |
-| red | diamond | ~2 (wraps at 179) |
-| blue | faceted ball | ~102 |
-| purple | diamond | ~145 |
-| yellow | triangle / pyramid | ~24 |
-| orange | hexagon | ~17 |
-| white | iridescent pearl | hue is meaningless → whiteness test |
+| Type | Silhouette | Engraving inside | Extent | Colour (OpenCV H) |
+|---|---|---|---|---|
+| green | rounded cube / square | vertical specular bar | 0.81 | ~55 |
+| orange | hexagon | 4-pointed star | 0.78 | ~17 |
+| blue | rounded hexagon / faceted ball | diagonal + horizontal bands | 0.74 | ~102 |
+| white | sphere, iridescent | hexagonal tessellation | 0.68 | hue is meaningless → whiteness test |
+| red | diamond | V / heart | 0.60 | ~2 (wraps at 179) |
+| purple | diamond | concentric diamond | 0.53 | ~145 |
+| yellow | triangle | inner facet | 0.53 | ~24 |
 
-Two of them are the *same shape* (red / purple diamonds) and two more are the
-*same shape* (blue ball / white pearl). That is exactly why the classifier
-uses shape and colour as two independent channels instead of trusting either
-one alone.
+**Seven types, six distinct silhouettes.** Only **red and purple share an
+outline** — both are diamonds — and they are told apart by the engraving
+inside them (V/heart vs concentric diamond) and by colour. Every other type
+is unique by outline alone, and the measured extent falls into five families
+(sharp / mid / pearl / ball / blocky).
+
+That is why the classifier uses shape and colour as two independent channels
+instead of trusting either one alone, and why the full-appearance TEMPLATE
+classifier can name all seven: it matches the outline, the engraving and the
+colour together, against reference patches taken from real gems.
+
+The detector keeps **two** shape masks on purpose: a bright-mask blob (scale
+consistent across the corpus, used for the veto) and a background-segmented
+silhouette (the gem's true outline, used for identification). See §7.5 of the
+PRD for why one of them cannot do both jobs.
 
 ## Licence
 

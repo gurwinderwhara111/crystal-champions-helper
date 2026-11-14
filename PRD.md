@@ -46,8 +46,10 @@ Derived from the two supplied recordings and six gameplay screenshots.
   | 6 | orange | hexagon | ~17 |
   | 7 | white | iridescent pearl | meaningless → whiteness test |
 
-  * **red and purple are both diamonds.**
-  * **blue and the white pearl are both round.**
+  * **red and purple are both diamonds** — and they are the *only* pair that
+    shares an outline (verified in §7.2).
+  * **blue is a faceted ball, the white pearl is a sphere** — they look alike
+    at a glance, but they are different silhouettes.
   * The orange hexagon has a bright yellow/white **X painted across it** and a
     white specular sparkle — this is what breaks naive hue averaging.
 
@@ -275,19 +277,48 @@ pure gem material, free of cage, swirl and tile background).
 
 **Shape — from the cell *window* blob** (the bright blob of the gem body).
 
-`extent = area / bbox_area` separates the shapes almost on its own:
+The taxonomy below was verified by **magnifying every gem in the corpus at
+3×** and reading what is actually drawn. Each of the seven crystals has its
+**own** distinctive look: a silhouette *plus* the facet pattern engraved
+inside it.
 
-| shape | extent | extra discriminator |
+| Type | Silhouette | Sides / corners | Engraving inside | Measured extent | Aspect |
+|---|---|---|---|---|---|
+| green | rounded cube / square | 4 rounded corners | vertical specular bar | 0.81 | ≈ 1.0 |
+| orange | hexagon | 6 corners | 4-pointed star | 0.78 | ≈ 1.0 |
+| blue | rounded hexagon / faceted ball | rounded, no sharp corners | diagonal + horizontal bands | 0.74 | ≈ 1.0 |
+| white | sphere, iridescent | no corners | hexagonal tessellation | 0.68 | ≈ 1.0 |
+| red | diamond | 4 sharp corners | V / heart | 0.60 | ≈ 1.0 |
+| purple | diamond | 4 sharp corners | concentric diamond | 0.53 | ≈ 1.0 |
+| yellow | triangle | 3 corners | inner facet | 0.53 | ≈ 1.0 |
+
+**Seven types, six distinct silhouettes.** Only **red and purple share an
+outline** — both are diamonds. They are separated by the engraving inside them
+(V/heart vs concentric diamond) and by colour. Every other type is unique by
+outline alone.
+
+**Aspect carries no information.** Every gem's bounding box is square
+(measured 0.93–1.09 across all seven types), so the shape family is driven by
+extent and corners only.
+
+`extent = area / bbox_area` falls into five families, and those are the bands
+the veto uses:
+
+| family | extent band | members |
 |---|---|---|
-| rounded cube (green) | ~0.90 | — |
-| circle (blue / pearl) | ~0.785 | corners ≤ 3 |
-| hexagon (orange) | ~0.75 | corners ≥ 4 |
-| diamond (red / purple) | ~0.50 | aspect 1.0, 4 sharp corners |
-| triangle (yellow) | ~0.50 | aspect ≈ 1.15, 3 corners, flat bottom |
+| sharp | < 0.575 | purple, yellow |
+| mid | 0.575–0.635 | red |
+| pearl | 0.635–0.695 | white |
+| ball | 0.695–0.765 | blue |
+| blocky | ≥ 0.765 | green, orange |
 
-**Cross-check.** The shape family is compared against the shape implied by the
-colour. Agreement → confidence 0.98. Disagreement → confidence 0.35, i.e. the
-cell is *suspect* and the bot refuses to act on it.
+**Cross-check — a veto, not a penalty.** The shape family implied by the
+measured extent is compared against the family implied by the colour.
+Agreement → confidence 0.97. Disagreement → the cell is **refused** (no
+answer, confidence 0) and the bot does not act on it. Because the measured
+ranges genuinely overlap — green and orange are both `blocky`, and blue and
+white straddle `ball`/`pearl` — those pairs are never vetoed against each
+other; only the unambiguous ends are (see §13).
 
 ### 7.3 Variants (cage / swirl)
 
@@ -322,10 +353,17 @@ detector. The annotated montages in `detector/verify/` are the audit trail.
 | **RULE** | hue band + silhouette veto | **380 / 384 = 98.96 % identified, 0 wrong** |
 | CENTROID | nearest neighbour in (hue, sat, val) | 370 / 384 = 96.35 % |
 | SHAPE | silhouette template match, colour-blind | 349 / 384 = 90.89 % |
+| TEMPLATE | full-appearance template match | 357 / 384 = 92.97 % |
 
 **The number that matters for a bot is precision, not recall: every answer the
 system gives is correct.** 380 cells are identified, 4 are refused as unknown,
-and **0 are wrong**.
+and **0 are wrong**. The shape cross-check flags exactly 4 cells as low
+confidence → gated accuracy 98.96 % with 4 unknown.
+
+*This run did not change the RULE row.* The silhouette work of §7.5 and the
+template classifier of §7.6 were added *beside* the primary classifier, not
+underneath it, so the number of refused cells is unchanged at **4** and the
+number of wrong answers is still **0**.
 
 Confusion matrix for RULE — **zero confusions**, and the UNKNOWN column is
 exactly where it should be:
@@ -341,14 +379,20 @@ orange            0    0     0       0       0     58      0     1
 white             0    0     0       0       0      0     58     0
 ```
 
-The four refused cells are precisely the ones we *want* refused:
+The four refused cells are precisely the ones we *want* refused. In every
+case it is the **silhouette veto** that fired — the cell is not guessed, it is
+refused:
 
 | cell | what it is | why it was refused |
 |---|---|---|
-| `112414 r5c2` | yellow triangle with the **red swirl** | special gem, not modelled yet |
-| `112444 r5c3` | blue ball with the **red swirl** | special gem, not modelled yet |
-| `112522 r5c2` | yellow triangle with the **red swirl** | special gem, not modelled yet |
-| `112522 r5c8` | washed-out orange hexagon, mid-spawn | hue drifted to 23, on the orange/yellow boundary |
+| `112414 r5c2` | yellow triangle with the **red swirl** | the swirl distorts the bright blob: measured extent 0.62 → family `mid`, but yellow must be `sharp` → contradiction → veto |
+| `112444 r5c3` | blue ball with the **red swirl** | same mechanism: extent 0.60 → `mid`, but blue must be `ball`/`blocky`/`pearl` → veto |
+| `112522 r5c2` | yellow triangle with the **red swirl** | same mechanism: extent 0.60 → `mid` vs `sharp` → veto |
+| `112522 r5c8` | washed-out orange hexagon, mid-spawn | the hue drifted to 23, so the colour band says *yellow*, but the extent 0.77 says `blocky` → contradiction → veto |
+
+Three of the four are the red-swirl special gems, which we cannot model yet;
+the fourth is an orange caught mid-spawn-animation. Neither case is a case the
+bot should act on, so both are refused rather than guessed.
 
 **A note on how the first result was wrong.** The first run of this test
 scored 383/384 = 99.74 % with a single error, and looked finished. It was
@@ -359,21 +403,110 @@ uses to decide "don't click if unsure" would have refused to act on half the
 board.
 
 The cause was that the silhouette bands in §7.2 had been written from *ideal
-geometry* rather than measured from the game's actual art. Measured:
+geometry* rather than measured from the game's actual art. The first measured
+pass gave:
 
 ```
 purple 0.53 | yellow 0.52 | red 0.61 | white 0.65 | blue 0.74 | green 0.79 | orange 0.78
 ```
 
-Green, blue and orange all overlap. Re-deriving the bands from the measured
+Green, blue and orange all overlapped. Re-deriving the bands from the measured
 data and turning the cross-check into a one-sided veto fixed it: **wrong
 answers 1 → 0**, at the cost of 3 more cells being refused (all of them
 special gems we cannot model yet — a trade we want).
+
+The 3× magnification audit of §7.2 then re-measured the same bands against
+the real artwork and moved several of them again (green 0.79 → 0.81,
+white 0.65 → 0.68, red 0.61 → 0.60, yellow 0.52 → 0.53), giving the bands in
+use today:
+
+```
+purple 0.53 | yellow 0.53 | red 0.60 | blue 0.74 | orange 0.78 | green 0.81 | white 0.68
+```
+
+The bands are therefore **measured values, not a design**: any future change
+to them has to be re-measured and re-scored, not reasoned about.
 
 **Lesson recorded for the build phase:** a metric that only measures accuracy
 is not enough. The metric that matters for an auto-player is
 *"of the cells it claims to know, how many are right"* — and it must be
 reported alongside the refusal rate.
+
+### 7.5 Shape segmentation: brightness vs background
+
+**Finding 1 — a brightness threshold does not give the gem's outline.** The
+original mask keeps every pixel bright enough to be gem material. That is
+**not** the gem's silhouette: the crystals have **dark engraved facets**, so a
+brightness threshold punches holes in the body. The red diamond's face is
+nearly black; the orange hexagon has a dark lower-left facet. The outline
+that comes out is ragged and holed, and any extent measured from it describes
+the *lit* part of the gem rather than the gem.
+
+**The fix — segment against the tile background.** `gv.cell_silhouette()`
+estimates the background colour from the **border ring** of the cell crop
+(the median of the outer 3-pixel ring), treats every pixel that differs from
+it by more than a fixed tolerance as gem material, and then **fills the outer
+contour**, so the dark facets no longer count as holes. That is the gem's
+true outline.
+
+**Finding 2 — but that outline is scale sensitive.** The four cropped
+screenshots in the corpus are **downscaled** versions of the render, so the
+anti-aliased edge band of every gem is proportionally wider and the measured
+extent **inflates at small scales**. The yellow triangles measure 0.476 in
+the full-desktop shot and drift upward in the cropped ones. The old
+brightness-mask blob, by contrast, is **scale consistent across all six
+screenshots** — its extent bands do not move with the downscale.
+
+**Consequence: both masks are kept, each for its own job.**
+
+| | `cell_blob()` | `cell_silhouette()` |
+|---|---|---|
+| what it is | bright-mask blob of the gem body | the true outline, segmented against the tile background |
+| scale behaviour | **consistent** across all six screenshots | inflates at small (downscaled) scales |
+| used for | the silhouette **veto** — the shape-family bands of §7.2 | shape **identification** (the template patch of §7.6) and the audit montages |
+
+The veto decides whether we are willing to trust the colour, so it needs a
+number that means the same thing in every screenshot — that is the
+brightness blob. The silhouette is what you need when the question is *what
+is this gem*, and the montage is what we draw when checking a board by eye.
+
+### 7.6 The full-appearance template classifier
+
+Because every crystal has its own distinctive look, the most direct
+classifier is to match the **whole gem** — silhouette + engraving + colour —
+instead of describing it in rules.
+
+`gv.gem_patch()` builds a normalised 48×48 **full-appearance patch**: the true
+silhouette from §7.5 is used to mask the cell crop, the crop is cut to the
+silhouette's bounding box, padded to a square, resized, and everything
+outside the silhouette is zeroed. What is left carries the outline, the
+engraved facets, the highlights and the colour together.
+
+`Classifier.template_predict()` matches that patch against the learned
+reference patches (per-channel unit-normalised HSV correlation, best match
+per type). Because the reference set holds **real gems from the corpus**, the
+classifier learns the actual artwork rather than a hand-written description of
+it. That is why it separates **red from purple even though both are
+diamonds** — the engraving inside the outline is part of the template.
+
+Four classifiers now exist, all over the same reference set:
+
+| Classifier | Input | What it uses |
+|---|---|---|
+| **RULE** | core + blob | hue bands + silhouette veto — **primary**, explainable, can refuse |
+| **TEMPLATE** | full-appearance patch | silhouette + engraving + colour matched as one template |
+| CENTROID | core | nearest neighbour in (hue, sat, val) |
+| SHAPE | blob | silhouette template match only (colour blind) |
+
+**What the template classifier is, and is not.** It names all seven types,
+including the two that share an outline, and it is more robust than RULE to
+the swirl cells: on the three swirl cells that RULE refuses, TEMPLATE names
+the right type, because the patch is masked to the gem's silhouette and the
+swirl ring falls outside it. But it has **no refusal mechanism** — on this
+corpus it always answers, and on the 27 cells where it is wrong it is
+confidently wrong: blue→red (11), orange→green/red/blue (9), red→orange (6),
+green→blue (1). For a bot that must not click on a cell it is unsure about,
+it stays a **cross-check**; RULE, which can refuse, is what decides.
 
 ---
 
@@ -411,7 +544,7 @@ warm up  →  detect board  →  validate ROI  →  read 64 cells (multi-frame v
 | # | Item | Severity |
 |---|---|---|
 | 1 | **Variant detection recall is 6.5 %** — cages and swirls are mostly missed. A caged cell must not be swapped blindly. | high |
-| 2 | **Special gems are unidentified.** The red-swirl aura is now detected well enough that the detector *refuses* those cells, which is safe, but we cannot yet say what the special gem *does*. The HOW TO PLAY pages 2–4 were never captured. | high |
+| 2 | **Special gems are unidentified.** The red-swirl aura distorts the cell enough that the detector *refuses* those cells, which is safe, but we cannot yet say what the special gem *does*. The HOW TO PLAY pages 2–4 were never captured. | high |
 | 3 | **The score formula is unknown.** We are guessing at points per gem and per cascade. | high |
 | 4 | **The objective strip** may be a legend, not objectives. If it is objectives with counts, we need OCR on a ~12 px strip. | medium |
 | 5 | **Whether the board refills from the top** (gravity) is unknown; it decides whether cascade simulation is meaningful at all. | medium |
@@ -420,6 +553,8 @@ warm up  →  detect board  →  validate ROI  →  read 64 cells (multi-frame v
 | 8 | **Three OpenCV packages are installed** (`opencv-python`, `opencv-python-headless`, `opencv-contrib-python`) and they all write the same `cv2` module. Clean up to one. | low |
 | 9 | **Only 20 GB free disk** on the laptop. | low |
 | 10 | **MSS's `mss.mss()` is deprecated** in 10.2 — use `mss.MSS()`. | low |
+| 11 | **The true-silhouette mask is scale sensitive.** The four cropped screenshots are downscaled, so the anti-aliased edge band widens and the measured extent inflates (yellow triangles read 0.476 in the full-desktop shot, higher in the crops). The veto therefore stays on the brightness blob, which is scale consistent; any future extent threshold has to be calibrated per screenshot scale, not once for the corpus. | medium |
+| 12 | **The template classifier cannot refuse.** TEMPLATE names a type for all 384 cells, including 27 it gets wrong, so it is not safe as the primary reader on its own. RULE (380/384, 0 wrong) remains the primary until a refusal mechanism exists for the template path. | medium |
 
 ---
 
@@ -464,14 +599,17 @@ warm up  →  detect board  →  validate ROI  →  read 64 cells (multi-frame v
 | MSS for capture | DXcam, Windows Graphics Capture | MSS is the only one that does not disturb the game; WGC would be the better technical choice but adds a dependency and was not needed. DXcam is fastest but the margin did not matter at a 35 s/move budget |
 | Region-only capture | full-screen grab | 34 ms → 17 ms, and it is the input to everything else |
 | Hardcoded ROI + validation | re-detect the board every frame | the window never changes size, so the ROI is constant; detection is only needed after a failure |
-| Two channels (shape, colour) | colour only | red/purple and blue/pearl are same-shape; colour alone cannot separate them |
+| Two channels (shape, colour) | colour only | red and purple share an outline (both diamonds) and only the engraving and the colour tell them apart; colour alone cannot separate them |
 | Circular median hue | mean hue | the orange hexagon's X highlight drags a mean into yellow |
 | Whiteness test for the pearl | hue band | the pearl's hue is meaningless by construction |
-| **Measured silhouette bands** | ideal geometry from theory | the ideal table said green 0.90 / circle 0.785 / hexagon 0.75; measured, green is 0.79 and blue 0.74, so the theory produced 49 % false confidence flags |
+| **Measured silhouette bands** | ideal geometry from theory | the ideal table said green 0.90 / circle 0.785 / hexagon 0.75; measured, green is 0.81 and blue 0.74, so the theory produced 49 % false confidence flags |
+| **Background segmentation for the true outline** | bright-threshold silhouette | the crystals carry dark engraved facets (the red diamond's face is nearly black, the orange hexagon has a dark lower-left facet), so a brightness threshold punches holes in the outline; segmenting against the tile background and filling the outer contour gives the real shape |
+| **Keep both masks** — brightness blob for the veto, background silhouette for identification | one mask for everything | the background silhouette is scale sensitive (downscaled crops inflate the edge band), while the brightness blob is consistent across all six screenshots. The veto needs a number that means the same thing everywhere; the identifier needs the true outline |
+| **Full-appearance template matching** | hand-written per-type descriptors | every crystal has its own look — outline + engraving + colour — so matching the whole patch learns the actual artwork instead of a description of it, and separates red from purple even though both are diamonds |
 | **Veto, not penalty** | penalise any shape/colour disagreement | green and orange genuinely share a silhouette; penalising that produced false alarms on 49 % of cells |
 | Consecutive-8-slot lattice constraint | peak picking | kills harmonic pitches; peak picking failed on the saturated background |
 | Confidence gating (no guess) | always answer | a skipped move costs nothing, a wrong move costs the round |
 | Two-button panel | three buttons | the system is automated; SCAN and CALIBRATE are the same code path |
 | `pythonw.exe`, no console | console app | the game pauses on focus loss; a console window would steal focus and kill the round |
 | Overlay outside the board | overlay on the board | the overlay would be captured by MSS and poison the read |
-| No ML model | small CNN via ONNX | 8 GB RAM with 0.7 GB free, 2 cores; the rule-based classifier hit 99.74 % and is explainable. ONNX stays available if specials need it |
+| No ML model | small CNN via ONNX | 8 GB RAM with 0.7 GB free, 2 cores; the rule-based classifier answers 380 of 384 cells with 0 errors and is explainable. ONNX stays available if specials need it |
