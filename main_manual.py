@@ -220,7 +220,7 @@ class ManualUI:
             on_move=self._on_move,
             on_status=self._on_status,
             on_grid=self._on_grid,
-            interval=1.5,
+            interval=0.8,
             max_unknown=10,
         )
         self.controller.start()
