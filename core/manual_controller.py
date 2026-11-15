@@ -24,8 +24,8 @@ OnBeforeCapture = Callable[[], None]
 # () -> None       Overlay may now show again (controller does not show it).
 OnAfterCapture = Callable[[], None]
 
-# (dict | None)    Planner result from best_move(), None when uncertain.
-OnMove = Callable[[Optional[Dict[str, Any]]], None]
+# (dict | None, list)    Planner result from best_move() + top_moves list, None when uncertain.
+OnMove = Callable[[Optional[Dict[str, Any]], List[Dict[str, Any]]], None]
 
 # (text, kind)     kind in {"idle","scanning","paused","ok","error"}
 OnStatus = Callable[[str, str], None]
@@ -225,7 +225,7 @@ class ManualController:
                 )
             except Exception as e:
                 self._on_status(f"plan failed: {e}", "error")
-                self._on_move(None)
+                self._on_move(None, [])
                 self._on_grid(rows, stats)
                 self._last_result = None
                 self._sleep_remaining(tick_start)
@@ -243,7 +243,7 @@ class ManualController:
 
             # ── 6. Callbacks ─────────────────────────────────────────────
             self._on_status("ok", "ok")
-            self._on_move(result)
+            self._on_move(result, [])
             self._on_grid(rows, stats)
             self._last_result = result
 

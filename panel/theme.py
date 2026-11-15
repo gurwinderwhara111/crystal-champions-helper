@@ -30,7 +30,12 @@ ERR = "#ff5c5c"         # error
 
 # ── Arrow colours (manual mode) ───────────────────────────────────────
 ARROW_NOW = "#00ff00"      # GREEN - current move to tap NOW
-ARROW_NEXT = "#ff8c00"    # ORANGE - follow-up/next move text
+ARROW_NEXT = "#ff8c00"     # ORANGE - follow-up/next move text
+
+# ── Top-3 move colours ────────────────────────────────────────────────
+MOVE_1 = "#00ff00"         # GREEN - best move
+MOVE_2 = "#00bfff"         # BLUE - 2nd best move
+MOVE_3 = "#ffff00"         # YELLOW - 3rd best move
 
 # ── Misc ──────────────────────────────────────────────────────────────
 GRID_LINE = "#2a2f3a"
@@ -58,6 +63,7 @@ __all__ = [
     "BG", "BG_DEEP", "BG_HOVER", "FG", "FG_DIM",
     "ACCENT", "ACCENT_2", "WARN", "OK", "ERR",
     "ARROW_NOW", "ARROW_NEXT",
+    "MOVE_1", "MOVE_2", "MOVE_3",
     "GRID_LINE", "TRANSPARENT_KEY",
     "FONT_MONO", "FONT_MONO_BOLD", "FONT_UI", "FONT_UI_BOLD", "FONT_UI_SMALL",
     "DOT_COLOURS",

@@ -267,15 +267,21 @@ class ArrowOverlay:
             x, y, text=n, fill=colour, font=theme.FONT_UI_SMALL, anchor="center",
         )
 
-    def _draw(self, a: tuple[int, int], b: tuple[int, int], label: str) -> None:
+    def _draw(self, a: tuple[int, int], b: tuple[int, int], label: str, colour: str = None) -> None:
         """(Re)build the arrow graphic.  Pure canvas work, never blocks."""
         if self._destroyed or self.grid is None:
             return
         g = self.grid
         c = self.canvas
+        
+        # Use provided colour or default
+        if colour is None:
+            colour = theme.ARROW_NOW
+            
         self._canvas_w = int(g["width"])
         self._canvas_h = int(g["height"])
-        c.delete("all")
+        # Don't clear canvas if we're drawing multiple moves
+        # c.delete("all")  -- removed, will be called in show_moves
 
         ax, ay = self.cell_to_window(int(a[0]), int(a[1]))
         bx, by = self.cell_to_window(int(b[0]), int(b[1]))
@@ -283,15 +289,15 @@ class ArrowOverlay:
         rad = max(10.0, pitch * self.RING_FRAC)
         ring_w = max(3, int(round(pitch * self.RING_WIDTH_FRAC)))
 
-        # Pickup cell: GREEN ring, thick.
+        # Pickup cell: coloured ring, thick.
         c.create_oval(
             ax - rad, ay - rad, ax + rad, ay + rad,
-            outline=theme.ARROW_NOW, width=ring_w,
+            outline=colour, width=ring_w,
         )
-        # Destination cell: GREEN ring, thick.
+        # Destination cell: coloured ring, thick.
         c.create_oval(
             bx - rad, by - rad, bx + rad, by + rad,
-            outline=theme.ARROW_NOW, width=ring_w,
+            outline=colour, width=ring_w,
         )
 
         # Shaft from ring edge to ring edge, head at B.
@@ -303,7 +309,7 @@ class ArrowOverlay:
             ex, ey = bx - ux * (rad + 3), by - uy * (rad + 3)
             c.create_line(
                 sx, sy, ex, ey,
-                fill=theme.ARROW_NOW, width=max(3, ring_w - 1),
+                fill=colour, width=max(3, ring_w - 1),
                 arrow=tk.LAST, arrowshape=(16, 20, 7), capstyle=tk.ROUND,
             )
             mid_x, mid_y = (sx + ex) / 2.0, (sy + ey) / 2.0
@@ -317,8 +323,8 @@ class ArrowOverlay:
             anchor = "w"
 
         # Tap order badges: 1 = pick up, 2 = drop.
-        self._badge(ax - rad * 0.78, ay - rad * 0.78, "1", theme.ARROW_NOW)
-        self._badge(bx - rad * 0.78, by - rad * 0.78, "2", theme.ARROW_NOW)
+        self._badge(ax - rad * 0.78, ay - rad * 0.78, "1", colour)
+        self._badge(bx - rad * 0.78, by - rad * 0.78, "2", colour)
 
         if label:
             self._fit_chip(chip_x, chip_y, label, anchor)
@@ -337,7 +343,36 @@ class ArrowOverlay:
         a = (int(a[0]), int(a[1]))
         b = (int(b[0]), int(b[1]))
         self._last_move = (a, b, label)
+        self.canvas.delete("all")
         self._draw(a, b, label)
+        self._show_window()
+
+    def show_moves(
+        self,
+        moves: list,
+    ) -> None:
+        """Draw top 3 moves with different colors.
+        
+        Args:
+            moves: List of dicts with keys 'a', 'b', 'label', 'colour'
+                   e.g. [{'a': (3,2), 'b': (3,5), 'label': '+340', 'colour': '#00ff00'}, ...]
+        """
+        if self._destroyed:
+            return
+        if self.grid is None:
+            raise RuntimeError("ArrowOverlay.set_grid() must be called first")
+        
+        self.canvas.delete("all")
+        
+        # Draw each move with its assigned colour
+        for i, move in enumerate(moves[:3]):  # Max 3 moves
+            a = (int(move['a'][0]), int(move['a'][1]))
+            b = (int(move['b'][0]), int(move['b'][1]))
+            label = move.get('label', '')
+            colour = move.get('colour', theme.MOVE_1 if i == 0 else theme.MOVE_2 if i == 1 else theme.MOVE_3)
+            
+            self._draw(a, b, label, colour)
+        
         self._show_window()
 
     def _show_window(self) -> None:

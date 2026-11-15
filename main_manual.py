@@ -227,13 +227,14 @@ class ManualUI:
         self.snackbar.set_paused(False)
         self.snackbar.set_status("RUNNING", "ok")
 
-    def _on_move(self, result: Optional[Dict[str, Any]]) -> None:
+    def _on_move(self, result: Optional[Dict[str, Any]], top_moves: List[Dict[str, Any]] = []) -> None:
         """Callback when planner produces a move."""
         if result is None:
             self.snackbar.set_readout("no legal move")
             self.arrow_overlay.hide()
             return
 
+        # Show single best move in GREEN only
         move = result["move"]
         r1, c1, r2, c2 = move
         self.arrow_overlay.show_move((r1, c1), (r2, c2), f"+{result['points']}")

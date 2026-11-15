@@ -35,6 +35,11 @@
           "name": "Qwen3 Coder 480B",
           "tool_call": true,
           "reasoning": true
+        },
+        "moonshotai.kimi-k2.5": {
+          "name": "Kimi K2.5 (Moonshot AI)",
+          "tool_call": true,
+          "reasoning": true
         }
       }
     }

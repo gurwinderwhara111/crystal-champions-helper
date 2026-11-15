@@ -145,6 +145,43 @@ def best_move(grid: List[List[str]], level: int = 1, score: float = 0.0,
     return best
 
 
+def best_moves(grid: List[List[str]], level: int = 1, score: float = 0.0,
+               time_left: float = 180.0, lookahead: int = 6, top_n: int = 3) -> List[Dict[str, Any]]:
+    """
+    Return top N moves (1-ply only for speed).
+    
+    Returns list of dicts sorted by points descending:
+      [{"move", "points", "combined"}, ...]
+    
+    Never mutates `grid`.
+    """
+    game = grid_to_game(grid, level=level, score=score, time_left=time_left)
+    moves = game.legal_moves()
+    if not moves:
+        return []
+
+    # Evaluate all legal moves (1-ply only for speed)
+    results: List[Tuple[Tuple[int, int, int, int], int]] = []
+    for mv in moves:
+        g = game.clone()
+        pts = g.apply_swap(*mv).points
+        results.append((mv, int(pts)))
+
+    # Sort by points descending
+    results.sort(key=lambda item: (-item[1], item[0]))
+
+    # Return top N
+    top_moves = []
+    for mv, pts in results[:top_n]:
+        top_moves.append({
+            "move": mv,
+            "points": pts,
+            "combined": float(pts),
+        })
+
+    return top_moves
+
+
 def format_move(move: Tuple[int, int, int, int]) -> str:
     """Format a move as 'R3C2 -> R3C5' (1-based, human readable)."""
     r1, c1, r2, c2 = move

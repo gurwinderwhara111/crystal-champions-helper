@@ -3,6 +3,7 @@
  "rule_accuracy": 0.9895833333333334,
  "centroid_accuracy": 0.9635416666666666,
  "shape_accuracy": 0.9088541666666666,
+ "template_accuracy": 0.9296875,
  "errors": [
   {
    "image": "112414",
