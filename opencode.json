@@ -1,0 +1,43 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "mantle": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Mantle (AWS Bedrock)",
+      "options": {
+        "baseURL": "https://bedrock-mantle.ap-south-1.api.aws/v1",
+        "apiKey": "{env:AWS_BEARER_TOKEN_BEDROCK}",
+        "headers": {
+          "OpenAI-Project": "default"
+        }
+      },
+      "models": {
+        "zai.glm-5": {
+          "name": "GLM 5 (Z.ai)",
+          "tool_call": true,
+          "reasoning": true
+        },
+        "openai.gpt-oss-120b": {
+          "name": "GPT-OSS 120B",
+          "tool_call": true
+        },
+        "minimax.minimax-m2.5": {
+          "name": "MiniMax M2.5",
+          "tool_call": true,
+          "reasoning": true
+        },
+        "qwen.qwen3-coder-next": {
+          "name": "Qwen3 Coder Next",
+          "tool_call": true,
+          "reasoning": true
+        },
+        "qwen.qwen3-coder-480b-a35b-instruct": {
+          "name": "Qwen3 Coder 480B",
+          "tool_call": true,
+          "reasoning": true
+        }
+      }
+    }
+  },
+  "model": "mantle/zai.glm-5"
+}

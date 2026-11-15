@@ -4,11 +4,16 @@ Crystal Champions Bot - Main Entry Point
 =========================================
 
 Usage:
-    python main.py panel          # Launch control panel (pythonw recommended)
+    python main.py manual         # Manual mode (default) - arrows + snackbar
+    python main.py panel          # Launch control panel (legacy)
     python main.py collect        # Run data collector
     python main.py detect         # Test detection on reference images
     python main.py test           # Run self-tests
-    python main.py auto           # Run auto-player (headless)
+    python main.py auto           # Run auto-player (headless, legacy)
+
+The 'manual' mode is the recommended default. It shows a compact snackbar
+with SCAN/PAUSE/CLOSE buttons and draws arrows on the two gems to swap.
+The user taps manually; the bot does NOT click.
 """
 
 import sys
@@ -21,8 +26,14 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 
+def cmd_manual():
+    """Launch manual mode (default)."""
+    from main_manual import main
+    main()
+
+
 def cmd_panel():
-    """Launch the control panel."""
+    """Launch the control panel (legacy - use manual mode instead)."""
     from panel.overlay import main as panel_main
     panel_main()
 
@@ -123,25 +134,27 @@ def cmd_auto():
 
 
 def main():
+    # Default to manual mode if no command given
     if len(sys.argv) < 2:
-        print(__doc__)
-        sys.exit(1)
-        
+        cmd_manual()
+        return
+
     cmd = sys.argv[1].lower()
-    
+
     commands = {
+        'manual': cmd_manual,
         'panel': cmd_panel,
         'collect': cmd_collect,
         'detect': cmd_detect,
         'test': cmd_test,
         'auto': cmd_auto,
     }
-    
+
     if cmd not in commands:
         print(f"Unknown command: {cmd}")
         print(__doc__)
         sys.exit(1)
-        
+
     commands[cmd]()
 
 

@@ -64,9 +64,22 @@ SHAPE_FAMILY = {
     "white":  "pearl",
 }
 
-# Which shape families are acceptable for each colour. A cell whose silhouette
-# falls outside its colour's acceptable set is a CONTRADICTION, and the cell is
-# reported as unknown rather than guessed.
+# Which shape families are acceptable for each colour.
+#
+# Every one of the 7 crystals has its OWN distinctive look - its silhouette
+# plus the facet pattern engraved inside it:
+#     green  rounded cube, vertical highlight bar
+#     orange hexagon, 4-pointed star engraved
+#     blue   rounded hexagon / faceted ball, diagonal + horizontal bands
+#     red    diamond, V / heart engraving
+#     purple diamond, concentric diamond engraving
+#     yellow triangle, inner facet
+#     white  sphere, hexagonal tessellation
+#
+# Only red and purple share an OUTLINE (both are diamonds); even they differ
+# in the engraving inside, so a full-appearance template separates all seven.
+# The bands below are therefore only a safety veto on the sharp end, where the
+# silhouette families are unambiguous.
 FAMILY_SET = {
     "green":  {"blocky"},
     "orange": {"blocky"},
@@ -323,7 +336,18 @@ def cell_core(bgr, cx, cy, pitch):
 
 
 def cell_blob(bgr, cx, cy, pitch):
-    """Gem blob inside the cell window + geometry of its silhouette."""
+    """
+    Bright-mask blob of the gem: the pixels that are bright enough to be gem
+    material.
+
+    NOTE: this is NOT the true outline - the gems have dark engraved facets
+    so a brightness mask leaves holes in them. It is kept because the extent
+    measured this way is SCALE CONSISTENT (the cropped screenshots are
+    downscaled, and a background-difference silhouette inflates its edge
+    band at small scales, which shifts the extent bands per screenshot).
+
+    Use cell_silhouette() when the real outline is needed.
+    """
     half = pitch * 0.46
     x0, x1 = int(cx - half), int(cx + half)
     y0, y1 = int(cy - half), int(cy + half)
@@ -355,6 +379,67 @@ def cell_blob(bgr, cx, cy, pitch):
         "aspect": aspect, "corners": len(approx),
         "win_shape": (win.shape[0], win.shape[1]),
         "centroid": (x + w / 2.0, y + h / 2.0),
+    }
+
+
+def cell_silhouette(bgr, cx, cy, pitch):
+    """
+    The gem's TRUE outline, segmented against the TILE BACKGROUND.
+
+    Thresholding on brightness does not work: the gems have dark engraved
+    facets (the red diamond has a near-black face, the orange hexagon a dark
+    lower-left facet), so a brightness threshold punches holes in the outline.
+    Here the background colour is estimated from the border ring of the crop
+    and every pixel that differs from it is gem material; the outer contour is
+    then filled so the dark facets do not count as holes.
+
+    Caveat: the edge band of the mask grows when the screenshot is a
+    downscaled version of the render, so the measured extent drifts with
+    scale. Good for shape identification, not for a fixed threshold.
+    """
+    half = pitch * 0.44
+    x0, x1 = int(cx - half), int(cx + half)
+    y0, y1 = int(cy - half), int(cy + half)
+    x0, y0 = max(0, x0), max(0, y0)
+    x1 = min(bgr.shape[1], x1)
+    y1 = min(bgr.shape[0], y1)
+    win = bgr[y0:y1, x0:x1]
+    if win.size == 0:
+        return None
+    h, w = win.shape[:2]
+    if h < 6 or w < 6:
+        return None
+    ring = np.concatenate([
+        win[:3].reshape(-1, 3), win[-3:].reshape(-1, 3),
+        win[:, :3].reshape(-1, 3), win[:, -3:].reshape(-1, 3)])
+    bg = np.median(ring, axis=0)
+    diff = np.abs(win.astype(np.float32) - bg.astype(np.float32)).max(axis=2)
+    m = (diff > 26).astype(np.uint8)
+    m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+    m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    cnts, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not cnts:
+        return None
+    c = max(cnts, key=cv2.contourArea)
+    if cv2.contourArea(c) < 200:
+        return None
+    solid = np.zeros_like(m)
+    cv2.drawContours(solid, [c], -1, 255, -1)
+    c = cv2.findContours(solid, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0][0]
+    area = cv2.contourArea(c)
+    x, y, w2, h2 = cv2.boundingRect(c)
+    hull_area = cv2.contourArea(cv2.convexHull(c))
+    peri = cv2.arcLength(c, True)
+    approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+    return {
+        "win": win, "contour": c, "area": area,
+        "bbox": (x, y, w2, h2),
+        "extent": area / float(w2 * h2) if w2 and h2 else 0.0,
+        "solidity": area / hull_area if hull_area else 0.0,
+        "aspect": w2 / float(h2) if h2 else 0.0,
+        "corners": len(approx),
+        "win_shape": (h, w),
+        "centroid": (x + w2 / 2.0, y + h2 / 2.0),
     }
 
 
@@ -443,8 +528,12 @@ def hue_to_type(hue, sat, val, whiteness=0.0):
 
 def shape_family(extent, solidity=None, aspect=None, corners=None):
     """
-    Coarse shape family from the measured extent of the gem silhouette.
-    See SHAPE_FAMILY for the measured ranges.
+    Coarse shape family from the extent of the BRIGHT-MASK blob.
+
+    Measured on all 384 labelled cells (this mask is scale consistent, which
+    the true-silhouette mask is not):
+        purple 0.53 | yellow 0.53 | red 0.60 | blue 0.74 | orange 0.78
+        green 0.81 | white 0.68
     """
     if extent is None:
         return None
@@ -525,11 +614,60 @@ def detect_variants(bgr, cx, cy, pitch, gem_bbox=None):
 
 # ---------------------------------------------------------------- classify
 
+PATCH_SIZE = 48        # normalised full-gem patch size
+
+
+def gem_patch(bgr, cx, cy, pitch, sil):
+    """
+    Normalised FULL-APPEARANCE patch of the gem: the true silhouette, masked
+    out of the cell crop and resized to a fixed square.
+
+    This captures everything that makes a crystal unique - outline, the
+    facet engraving inside it, and colour - so a template match on this
+    identifies all seven types, including the two that share an outline
+    (red and purple, both diamonds, but engraved differently).
+    """
+    if sil is None:
+        return None
+    half = pitch * 0.44
+    x0, x1 = int(cx - half), int(cx + half)
+    y0, y1 = int(cy - half), int(cy + half)
+    x0, y0 = max(0, x0), max(0, y0)
+    x1 = min(bgr.shape[1], x1)
+    y1 = min(bgr.shape[0], y1)
+    crop = bgr[y0:y1, x0:x1]
+    if crop.size == 0:
+        return None
+    h, w = crop.shape[:2]
+    mask = np.zeros((h, w), np.uint8)
+    cv2.drawContours(mask, [sil["contour"]], -1, 255, -1)
+    # square it: crop to the silhouette bbox, pad to a square, resize
+    x, y, bw, bh = sil["bbox"]
+    side = max(bw, bh)
+    cxm, cym = x + bw // 2, y + bh // 2
+    a = max(0, cxm - side // 2 - 2)
+    b = max(0, cym - side // 2 - 2)
+    cc = min(w, a + side + 4)
+    dd = min(h, b + side + 4)
+    sub = crop[b:dd, a:cc]
+    msub = mask[b:dd, a:cc]
+    if sub.size == 0:
+        return None
+    out = cv2.resize(sub, (PATCH_SIZE, PATCH_SIZE), interpolation=cv2.INTER_AREA)
+    mres = cv2.resize(msub, (PATCH_SIZE, PATCH_SIZE), interpolation=cv2.INTER_NEAREST)
+    mres = (mres > 127).astype(np.float32)[..., None]
+    return (out.astype(np.float32) * mres)
+
+
 class Classifier:
     """
-    Two independent classifiers:
-      * `hue`  - rule based
-      * `ncc`  - template match against learned reference cores
+    Four classifiers over the same reference set:
+      * `rule_predict`    - hue bands + silhouette veto (primary, explainable)
+      * `template_predict`- FULL-APPEARANCE template match (outline + engraving
+                           + colour). This is the one that exploits the fact
+                           that every crystal has its own distinct look.
+      * `centroid_predict`- nearest neighbour in (hue, sat, val)
+      * `shape_predict`   - silhouette template match only (colour blind)
     """
 
     def __init__(self, refs=None):
@@ -572,6 +710,50 @@ class Classifier:
                 if s > best:
                     best = s
             scores[t] = best
+        order = sorted(scores.items(), key=lambda kv: -kv[1])
+        margin = order[0][1] - (order[1][1] if len(order) > 1 else 0.0)
+        return order[0][0], margin
+
+    # -- full appearance template match --------------------------------
+    @staticmethod
+    def _patch_vec(patch):
+        """Per-channel unit-normalised HSV feature of a gem patch."""
+        hsv = cv2.cvtColor(patch.astype(np.uint8), cv2.COLOR_BGR2HSV).astype(np.float32)
+        f = np.stack([hsv[..., 0] / 180.0,
+                      hsv[..., 1] / 255.0,
+                      hsv[..., 2] / 255.0], axis=-1)
+        out = np.empty_like(f)
+        for c in range(3):
+            ch = f[..., c]
+            ch = ch - ch.mean()
+            out[..., c] = ch / (np.linalg.norm(ch) + 1e-6)
+        return out
+
+    def template_predict(self, patch):
+        """
+        Match the whole gem appearance against the learned reference patches.
+
+        The reference set holds the real gems, so this learns the actual
+        artwork - outline, engraved facets, highlights and colour - rather
+        than a hand written description of it.
+        """
+        if patch is None or not self.refs:
+            return None, 0.0
+        q = self._patch_vec(patch)
+        scores = {}
+        for t, arr in self.refs.items():
+            best = -1.0
+            for ref in arr:
+                p = ref.get("patch")
+                if p is None:
+                    continue
+                s = float((q * self._patch_vec(p)).sum() / 3.0)
+                if s > best:
+                    best = s
+            if best > -1.0:
+                scores[t] = best
+        if not scores:
+            return None, 0.0
         order = sorted(scores.items(), key=lambda kv: -kv[1])
         margin = order[0][1] - (order[1][1] if len(order) > 1 else 0.0)
         return order[0][0], margin
@@ -677,7 +859,166 @@ class Classifier:
 
         # silhouette veto
         fam = shape_family(blob["extent"]) if blob else None
-        if fam is not None and fam not in FAMILY_SET[t]:
+        allowed = FAMILY_SET.get(t)
+        if fam is not None and allowed is not None and fam not in allowed:
             # contradiction -> do not guess
             return None, 0.0
         return t, conf
+
+
+# ---------------------------------------------------------------- high-level API
+
+DEFAULT_REF_DIR = os.path.join(os.path.dirname(__file__), '..', 'images of cristels')
+
+_classifier_cache = None
+
+def build_classifier(ref_dir: str = None) -> 'Classifier':
+    """Build a Classifier from reference images in the given directory.
+    Uses the same seed/harvest logic as test_detect.py."""
+    if ref_dir is None:
+        ref_dir = DEFAULT_REF_DIR
+    if not os.path.isdir(ref_dir):
+        raise FileNotFoundError(f"Reference directory not found: {ref_dir}")
+    
+    # Load images
+    images = []
+    for f in sorted(os.listdir(ref_dir)):
+        if f.lower().endswith((".png", ".jpg", ".jpeg")):
+            p = os.path.join(ref_dir, f)
+            im = cv2.imread(p)
+            if im is not None:
+                images.append((f, im))
+    if not images:
+        raise RuntimeError(f"No images found in {ref_dir}")
+    
+    # Build references using the same logic as test_detect.py
+    SEEDS = {
+        "green":  ("112536", (1, 6)),
+        "red":    ("112536", (1, 4)),
+        "blue":   ("112536", (2, 1)),
+        "purple": ("112536", (1, 8)),
+        "yellow": ("112536", (2, 7)),
+        "orange": ("112536", (1, 7)),
+        "white":  ("112536", (2, 6)),
+    }
+    
+    def analyse(im, verbose=False):
+        board = find_board(im, verbose=verbose)
+        if board is None:
+            return None
+        cells = []
+        for (cx, cy) in board["centres"]:
+            core, _ = cell_core(im, cx, cy, board["pitch"])
+            blob = cell_blob(im, cx, cy, board["pitch"])
+            sil = cell_silhouette(im, cx, cy, board["pitch"])
+            flags = detect_variants(im, cx, cy, board["pitch"],
+                                    blob["bbox"] if blob else None)
+            cells.append({"cx": cx, "cy": cy, "core": core, "blob": blob,
+                          "sil": sil,
+                          "patch": gem_patch(im, cx, cy, board["pitch"], sil),
+                          "flags": flags})
+        return {"board": board, "cells": cells}
+    
+    by_name = {f: im for f, im in images}
+    samples = {t: [] for t in TYPES}
+    for t, (frag, (r, c)) in SEEDS.items():
+        fname = next((f for f in by_name if frag in f), None)
+        if fname is None:
+            continue
+        res = analyse(by_name[fname])
+        if res is None:
+            continue
+        idx = (r - 1) * 8 + (c - 1)
+        cell = res["cells"][idx]
+        if cell["core"] is None:
+            continue
+        samples[t].append({"core": cell["core"], "silh": silhouette(cell["blob"]),
+                            "patch": cell["patch"]})
+    
+    # Pass 2: harvest confident cells
+    clf0 = Classifier(Classifier.build_refs(samples))
+    for f, im in images:
+        res = analyse(im)
+        if res is None:
+            continue
+        for cell in res["cells"]:
+            if cell["core"] is None:
+                continue
+            t, conf = clf0.rule_predict(cell["core"], cell["blob"])
+            if t is None or conf < 0.95:
+                continue
+            if len(samples[t]) >= 12:
+                continue
+            samples[t].append({"core": cell["core"],
+                               "silh": silhouette(cell["blob"]),
+                               "patch": cell["patch"]})
+    
+    return Classifier.build_refs(samples)
+
+
+def get_classifier(ref_dir: str = None) -> 'Classifier':
+    """Get or build the global Classifier (cached)."""
+    global _classifier_cache
+    if _classifier_cache is None:
+        refs = build_classifier(ref_dir)
+        _classifier_cache = Classifier(refs)
+    return _classifier_cache
+
+
+def detect_board(img, roi: dict = None, clf: 'Classifier' = None) -> list:
+    """
+    Detect the 8x8 board and classify every cell.
+    
+    Args:
+        img: BGR image (full frame or cropped board)
+        roi: Optional dict with keys left, top, width, height. 
+             If provided AND the image size matches roi (cropped board),
+             uses the ROI grid directly. Otherwise, runs find_board() on img.
+        clf: Optional Classifier instance. If None, uses the global cached one.
+    
+    Returns:
+        8x8 list of lists of gem type strings ('green', 'red', etc.) or '?' for unknown.
+    """
+    if clf is None:
+        clf = get_classifier()
+    
+    # Decide whether to use ROI grid or find_board
+    use_roi_grid = False
+    if roi is not None:
+        h, w = img.shape[:2]
+        # If image dimensions match ROI (within 5%), assume it's a pre-cropped board
+        if abs(w - roi['width']) < roi['width'] * 0.05 and abs(h - roi['height']) < roi['height'] * 0.05:
+            use_roi_grid = True
+    
+    if use_roi_grid:
+        # Derive grid from ROI (assumes perfect 8x8 grid on pre-cropped board)
+        left, top, w, h = roi['left'], roi['top'], roi['width'], roi['height']
+        pitch = w / 8.0
+        centres = []
+        for r in range(8):
+            for c in range(8):
+                cx = left + c * pitch + pitch * 0.5
+                cy = top + r * pitch + pitch * 0.5
+                centres.append((cx, cy))
+        board_pitch = pitch
+    else:
+        # Find board in the image (handles full frames, different scales, margins)
+        board = find_board(img)
+        if board is None:
+            return [['?' for _ in range(8)] for _ in range(8)]
+        centres = board["centres"]
+        board_pitch = board["pitch"]
+    
+    # Classify each cell
+    grid = [['?' for _ in range(8)] for _ in range(8)]
+    for idx, (cx, cy) in enumerate(centres):
+        r, c = divmod(idx, 8)
+        core, _ = cell_core(img, cx, cy, board_pitch)
+        blob = cell_blob(img, cx, cy, board_pitch)
+        if core is None or blob is None:
+            grid[r][c] = '?'
+            continue
+        t, _ = clf.rule_predict(core, blob)
+        grid[r][c] = t if t is not None else '?'
+    
+    return grid

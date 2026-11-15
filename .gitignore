@@ -48,3 +48,12 @@ detector/video_refs.pkl
 panel/overlay_v2.py
 panel/run_panel.cmd
 detector/run_collect.cmd
+
+# --- secrets (NEVER commit) ---
+.env
+ask.bat
+bedrock_client.py
+test_bedrock.py
+
+# --- training data (local only) ---
+training_data/

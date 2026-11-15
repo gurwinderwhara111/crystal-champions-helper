@@ -8,7 +8,13 @@ import cv2
 import numpy as np
 from typing import Optional, Dict, Any, List, Tuple
 
-from .constants import *
+from .constants import (
+    BLOB_ASPECT_RANGE, BLOB_FILL_RATIO, EVENNESS_WEIGHT,
+    GEM_BRIGHT_S, GEM_BRIGHT_V, GRID_TOLERANCE_RATIO,
+    MAX_BLOB_AREA_RATIO, MIN_BLOBS, MIN_BLOB_AREA_RATIO,
+    PEARL_S, PEARL_V,
+    PITCH_SEARCH_MAX, PITCH_SEARCH_MIN, PITCH_SEARCH_STEP,
+)
 
 
 class BoardFinder:

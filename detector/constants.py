@@ -1,8 +1,14 @@
 """
 Constants for Crystal Champions gem detection.
+
+This module is the SINGLE SOURCE OF TRUTH for tunables. It deliberately
+re-exports nothing and defines `__all__`, so `from .constants import *`
+no longer leaks `np` (or anything else) into consumers. New code should
+still prefer explicit imports.
 """
 
-import numpy as np
+from __future__ import annotations
+import os
 
 # ─── Gem Types ──────────────────────────────────────────────────────────
 
@@ -177,4 +183,49 @@ SEEDS = {
 
 # ─── Reference Image Directory ────────────────────────────────────────
 
-DEFAULT_REF_DIR = "images of cristels"
+# Directory name, relative to the project root.
+REF_DIR_NAME = "images of cristels"
+
+# Absolute path of the reference screenshots. `detector/` lives one level
+# below the project root, so a single '..' is correct.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_REF_DIR = os.path.join(_PROJECT_ROOT, REF_DIR_NAME)
+
+# ─── Public API ───────────────────────────────────────────────────────
+
+# `np` and `_PROJECT_ROOT` are intentionally NOT exported.
+__all__ = [
+    # types
+    "TYPES", "TYPE_INDEX", "HUE_CENTRE", "SHAPE_FAMILY", "FAMILY_SET",
+    # detection parameters
+    "CORE_SIZE", "PATCH_SIZE",
+    "GEM_BRIGHT_V", "GEM_BRIGHT_S", "PEARL_V", "PEARL_S",
+    "CORE_SAT_HIGH", "CORE_VAL_HIGH", "CORE_SAT_MID", "CORE_VAL_MID",
+    "CORE_SAT_LOW", "CORE_VAL_LOW",
+    "CORE_MIN_PIXELS_HIGH", "CORE_MIN_PIXELS_MID", "CORE_MIN_PIXELS_LOW",
+    "HUE_EDGES",
+    "WHITENESS_PEARL", "WHITENESS_HIGH_CONF", "WHITENESS_LOW_CONF",
+    "EXTENT_BANDS", "SHAPE_FAMILY_FROM_EXTENT",
+    # variant detection
+    "BODY_V_HIGH", "BODY_S_HIGH", "BODY_V_MID", "BODY_S_LOW",
+    "BODY_DILATE_KERNEL",
+    "WRAPPER_OPEN_KERNEL", "WRAPPER_MIN_AREA_RATIO", "WRAPPER_MIN_SIDE_RATIO",
+    "WRAPPER_ASPECT_RANGE",
+    "SWIRL_HUE_LOW", "SWIRL_HUE_HIGH", "SWIRL_SAT", "SWIRL_VAL",
+    "CAGE_HUE_LOW", "CAGE_HUE_HIGH", "CAGE_SAT_LOW", "CAGE_SAT_HIGH",
+    "CAGE_VAL_LOW", "CAGE_VAL_HIGH",
+    # board finding
+    "PITCH_SEARCH_MIN", "PITCH_SEARCH_MAX", "PITCH_SEARCH_STEP",
+    "MIN_BLOBS", "MIN_COVERAGE", "GRID_TOLERANCE_RATIO", "EVENNESS_WEIGHT",
+    "SNAP_WINDOW_RATIO",
+    # cell extraction
+    "CORE_HALF_RATIO", "BLOB_HALF_RATIO", "SILHOUETTE_HALF_RATIO",
+    "PATCH_HALF_RATIO", "VARIANT_HALF_RATIO",
+    "MIN_BLOB_AREA", "MIN_SILHOUETTE_AREA", "MIN_BLOB_AREA_RATIO",
+    "MAX_BLOB_AREA_RATIO", "BLOB_ASPECT_RANGE", "BLOB_FILL_RATIO",
+    # classifier
+    "MAX_REFS_PER_TYPE", "SEED_CONFIDENCE_THRESHOLD",
+    "HARVEST_CONFIDENCE_THRESHOLD", "SEEDS",
+    # reference images
+    "REF_DIR_NAME", "DEFAULT_REF_DIR",
+]

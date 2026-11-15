@@ -11,8 +11,8 @@ from typing import List, Dict, Optional, Tuple, Any
 from .board import find_board
 from .cell import (cell_core, cell_blob, cell_silhouette, detect_variants,
                    gem_patch, silhouette)
-from .classify import (Classifier, build_classifier, get_classifier,
-                       TYPES, TYPE_INDEX, SEEDS)
+from .classify import Classifier, build_classifier, get_classifier
+from .constants import DEFAULT_REF_DIR, SEEDS, TYPES, TYPE_INDEX
 
 
 def analyse_board(im: np.ndarray, verbose: bool = False) -> Optional[Dict[str, Any]]:
@@ -139,10 +139,12 @@ def build_references_from_images(images: List[Tuple[str, np.ndarray]]) -> Dict[s
     return Classifier.build_refs(samples)
 
 
-def load_reference_images(ref_dir: str = None) -> List[Tuple[str, np.ndarray]]:
+def load_reference_images(ref_dir: Optional[str] = None) -> List[Tuple[str, np.ndarray]]:
     """Load reference images from directory."""
     if ref_dir is None:
-        ref_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'images of cristels')
+        ref_dir = DEFAULT_REF_DIR
+    if not os.path.isdir(ref_dir):
+        raise FileNotFoundError(f"Reference directory not found: {ref_dir}")
     images = []
     for f in sorted(os.listdir(ref_dir)):
         if f.lower().endswith((".png", ".jpg", ".jpeg")):

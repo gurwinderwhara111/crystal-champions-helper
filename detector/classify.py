@@ -9,7 +9,18 @@ import cv2
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Any
 
-from .constants import *
+from .constants import (
+    CORE_MIN_PIXELS_HIGH, CORE_MIN_PIXELS_LOW, CORE_MIN_PIXELS_MID,
+    CORE_SAT_HIGH, CORE_SAT_LOW, CORE_SAT_MID,
+    CORE_SIZE,
+    CORE_VAL_HIGH, CORE_VAL_LOW, CORE_VAL_MID,
+    DEFAULT_REF_DIR, EXTENT_BANDS, FAMILY_SET, HUE_EDGES,
+    MAX_REFS_PER_TYPE, SEEDS, SEED_CONFIDENCE_THRESHOLD, TYPES,
+    WHITENESS_HIGH_CONF, WHITENESS_PEARL,
+)
+from .board import find_board
+from .cell import (cell_blob, cell_core, cell_silhouette, detect_variants,
+                   gem_patch, silhouette)
 
 
 class Classifier:
@@ -279,7 +290,7 @@ def hue_to_type(hue: Optional[float], sat: float, val: float, whiteness: float =
         return "green"
     if hue < 128:
         return "blue"
-    if hue < 170:
+    if hue < 172:
         return "purple"
     return None
 
@@ -307,12 +318,13 @@ def shape_family(extent: Optional[float], solidity: Optional[float] = None, aspe
 
 # ─── Reference Building ──────────────────────────────────────────────
 
-DEFAULT_REF_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'images of cristels')
+# NOTE: DEFAULT_REF_DIR is defined once, in `constants.py` (absolute path
+# of <project_root>/images of cristels). Do not re-define it here.
 
-_classifier_cache = None
+_classifier_cache: Optional['Classifier'] = None
 
 
-def build_classifier(ref_dir: str = None) -> 'Classifier':
+def build_classifier(ref_dir: Optional[str] = None) -> 'Classifier':
     """Build a Classifier from reference images in the given directory."""
     if ref_dir is None:
         ref_dir = DEFAULT_REF_DIR
@@ -331,8 +343,6 @@ def build_classifier(ref_dir: str = None) -> 'Classifier':
         raise RuntimeError(f"No images found in {ref_dir}")
     
     def analyse(im, verbose=False):
-        from .board import find_board
-        from .cell import cell_core, cell_blob, cell_silhouette, detect_variants, gem_patch, silhouette
         board = find_board(im, verbose=verbose)
         if board is None:
             return None
@@ -383,13 +393,12 @@ def build_classifier(ref_dir: str = None) -> 'Classifier':
                                "silh": silhouette(cell["blob"]),
                                "patch": cell["patch"]})
     
-    return Classifier.build_refs(samples)
+    return Classifier(Classifier.build_refs(samples))
 
 
-def get_classifier(ref_dir: str = None) -> 'Classifier':
-    """Get or build the global Classifier (cached)."""
+def get_classifier(ref_dir: Optional[str] = None) -> 'Classifier':
+    """Get or build the global Classifier (cached in-process)."""
     global _classifier_cache
     if _classifier_cache is None:
-        refs = build_classifier(ref_dir)
-        _classifier_cache = Classifier(refs)
+        _classifier_cache = build_classifier(ref_dir)
     return _classifier_cache

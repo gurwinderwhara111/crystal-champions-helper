@@ -27,7 +27,7 @@ def main():
     clf = gv.Classifier(build_references(images))
 
     totals = collections.Counter()
-    confusion = {m: collections.Counter() for m in ("RULE", "CENTROID", "SHAPE")}
+    confusion = {m: collections.Counter() for m in ("RULE", "CENTROID", "SHAPE", "TEMPLATE")}
     errors = []
 
     for f, im in images:
@@ -49,9 +49,10 @@ def main():
             t_rule, conf = clf.rule_predict(cell["core"], cell["blob"])
             t_cen, _ = clf.centroid_predict(cell["core"])
             t_shape, _ = clf.shape_predict(cell["blob"])
+            t_tpl, _ = clf.template_predict(cell["patch"])
             totals["cells"] += 1
             for name, pred in (("RULE", t_rule), ("CENTROID", t_cen),
-                               ("SHAPE", t_shape)):
+                               ("SHAPE", t_shape), ("TEMPLATE", t_tpl)):
                 confusion[name][(t, pred)] += 1
                 if pred == t:
                     totals[name + "_ok"] += 1
@@ -62,7 +63,7 @@ def main():
 
     print("\n================ ACCURACY ================")
     n = totals["cells"]
-    for name in ("RULE", "CENTROID", "SHAPE"):
+    for name in ("RULE", "CENTROID", "SHAPE", "TEMPLATE"):
         ok = totals[name + "_ok"]
         print(f"  {name:9s} {ok}/{n} = {100.0*ok/n:.2f}%   errors={totals[name+'_bad']}")
     print(f"\n  total cells scored: {n}")
@@ -118,6 +119,7 @@ def main():
            "rule_accuracy": totals["RULE_ok"] / n,
            "centroid_accuracy": totals["CENTROID_ok"] / n,
            "shape_accuracy": totals["SHAPE_ok"] / n,
+           "template_accuracy": totals["TEMPLATE_ok"] / n,
            "errors": [{"image": e[0], "row": e[1], "col": e[2], "truth": e[3],
                        "pred": e[4], "conf": e[5]} for e in errors]}
     with open(os.path.join(HERE, "accuracy.json"), "w") as fh:
