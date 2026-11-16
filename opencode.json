@@ -40,6 +40,16 @@
           "name": "Kimi K2.5 (Moonshot AI)",
           "tool_call": true,
           "reasoning": true
+        },
+        "anthropic.claude-sonnet-5": {
+          "name": "Claude Sonnet 5",
+          "tool_call": true,
+          "reasoning": true
+        },
+        "anthropic.claude-opus-5": {
+          "name": "Claude Opus 5",
+          "tool_call": true,
+          "reasoning": true
         }
       }
     }
