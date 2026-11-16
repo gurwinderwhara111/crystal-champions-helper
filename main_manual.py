@@ -238,30 +238,41 @@ class ManualUI:
         move = result["move"]
         r1, c1, r2, c2 = move
         
+        # Debug: print what type of move we got
+        if result.get("is_pattern"):
+            print(f"[MAIN] Pattern detected: {result.get('pattern_type')} at ({r1},{c1})->({r2},{c2})")
+        else:
+            print(f"[MAIN] Normal move: +{result.get('points', 0)} at ({r1},{c1})->({r2},{c2})")
+        
         # Determine arrow color based on pattern type
         if result.get("is_pattern"):
             pattern_type = result.get("pattern_type", "")
             if pattern_type == "void":
                 color = "red"
                 label = "VOID"
+                print(f"[MAIN] Showing RED arrow for VOID")
             elif pattern_type == "starlight_t" or pattern_type == "starlight_l":
                 color = "blue"
                 label = "STARLIGHT"
+                print(f"[MAIN] Showing BLUE arrow for STARLIGHT")
             elif pattern_type == "fire":
                 color = "orange"
                 label = "FIRE"
+                print(f"[MAIN] Showing ORANGE arrow for FIRE")
             else:
                 color = "green"
                 label = ""
+                print(f"[MAIN] Showing GREEN arrow (unknown pattern)")
             
             self.arrow_overlay.show_move((r1, c1), (r2, c2), label, colour=color)
         else:
             # Normal move - green
+            print(f"[MAIN] Showing GREEN arrow for normal move")
             self.arrow_overlay.show_move((r1, c1), (r2, c2), f"+{result['points']}")
         
         # Build readout
         if result.get("is_pattern"):
-            readout = f"{result['pattern_description']}"
+            readout = f"{result.get('pattern_description', 'Special pattern')}"
         else:
             readout = f"R{r1+1}C{c1+1} → R{r2+1}C{c2+1}  +{result['points']}"
             followup = result.get("followup")

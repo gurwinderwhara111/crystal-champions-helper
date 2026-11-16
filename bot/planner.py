@@ -112,10 +112,13 @@ def best_move(grid: List[List[str]], level: int = 1, score: float = 0.0,
     """
     
     # ── NEW: Check for special gem patterns first ──────────────────────
-    # Only if grid is valid (has no holes or unknowns that break pattern detection)
-    has_unknown = any(cell == '?' or cell is None for row in grid for cell in row)
+    # Allow up to 10 unknown cells - pattern detection can still work
+    unknown_count = sum(1 for row in grid for cell in row if cell == '?' or cell is None)
     
-    if not has_unknown:
+    # Log pattern detection attempt
+    print(f"[DEBUG] Unknown cells: {unknown_count}, checking patterns...")
+    
+    if unknown_count < 10:  # Allow up to 10 unknowns
         try:
             # Convert long names to short codes for pattern detector
             short_grid = []
@@ -127,17 +130,22 @@ def best_move(grid: List[List[str]], level: int = 1, score: float = 0.0,
                     elif cell in COLOURS:
                         short_row.append(cell)
                     else:
-                        short_row.append('?')
+                        short_row.append('?')  # Keep unknowns
                 short_grid.append(short_row)
             
             # Check patterns
             from bot.pattern_detector import PatternDetector, PatternType
             detector = PatternDetector()
+            print(f"[DEBUG] Running pattern detection...")
             opportunities = detector.find_all_opportunities(short_grid)
+            
+            print(f"[DEBUG] Found {len(opportunities)} pattern opportunities")
             
             if opportunities:
                 best_opp = opportunities[0]
                 r, c = best_opp.swap_position
+                
+                print(f"[DEBUG] Best pattern: {best_opp.pattern_type.value} at ({r},{c})")
                 
                 # Convert swap direction to second position
                 direction_map = {
@@ -150,13 +158,12 @@ def best_move(grid: List[List[str]], level: int = 1, score: float = 0.0,
                 
                 # Validate bounds
                 if 0 <= r2 < 8 and 0 <= c2 < 8:
-                    # Convert back to long names for move format
-                    long_codes = {v: k for k, v in DET_TO_GAME.items()}
+                    print(f"[DEBUG] Returning pattern move: ({r},{c}) -> ({r2},{c2})")
                     
                     return {
                         "move": (r, c, r2, c2),
-                        "points": 0,  # Pattern creation
-                        "combined": 1000,  # High priority
+                        "points": 1000,  # High priority for patterns
+                        "combined": 1000,
                         "chain": 0,
                         "specials": 0,
                         "detonations": 0,
@@ -164,11 +171,19 @@ def best_move(grid: List[List[str]], level: int = 1, score: float = 0.0,
                         "followup": None,
                         "pattern_type": best_opp.pattern_type.value,
                         "is_pattern": True,
-                        "pattern_description": best_opp.description
+                        "pattern_description": str(best_opp)
                     }
+                else:
+                    print(f"[DEBUG] Pattern out of bounds: ({r2},{c2})")
+            else:
+                print(f"[DEBUG] No patterns found, falling back to normal")
+                
         except Exception as e:
-            # If pattern detection fails, continue with normal planning
-            pass
+            print(f"[DEBUG] Pattern detection error: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print(f"[DEBUG] Too many unknowns ({unknown_count}), skipping patterns")
     
     # ── ORIGINAL: Normal 3-match detection ─────────────────────────────
     game = grid_to_game(grid, level=level, score=score, time_left=time_left)
