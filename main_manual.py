@@ -234,15 +234,40 @@ class ManualUI:
             self.arrow_overlay.hide()
             return
 
-        # Show single best move in GREEN only
+        # Show move with color based on pattern type
         move = result["move"]
         r1, c1, r2, c2 = move
-        self.arrow_overlay.show_move((r1, c1), (r2, c2), f"+{result['points']}")
-
-        readout = f"R{r1+1}C{c1+1} → R{r2+1}C{c2+1}  +{result['points']}"
-        followup = result.get("followup")
-        if followup:
-            readout += f"  then +{followup['points']}"
+        
+        # Determine arrow color based on pattern type
+        if result.get("is_pattern"):
+            pattern_type = result.get("pattern_type", "")
+            if pattern_type == "void":
+                color = "red"
+                label = "VOID"
+            elif pattern_type == "starlight_t" or pattern_type == "starlight_l":
+                color = "blue"
+                label = "STARLIGHT"
+            elif pattern_type == "fire":
+                color = "orange"
+                label = "FIRE"
+            else:
+                color = "green"
+                label = ""
+            
+            self.arrow_overlay.show_move((r1, c1), (r2, c2), label, colour=color)
+        else:
+            # Normal move - green
+            self.arrow_overlay.show_move((r1, c1), (r2, c2), f"+{result['points']}")
+        
+        # Build readout
+        if result.get("is_pattern"):
+            readout = f"{result['pattern_description']}"
+        else:
+            readout = f"R{r1+1}C{c1+1} → R{r2+1}C{c2+1}  +{result['points']}"
+            followup = result.get("followup")
+            if followup:
+                readout += f"  then +{followup['points']}"
+        
         self.snackbar.set_readout(readout)
 
     def _on_status(self, text: str, kind: str) -> None:

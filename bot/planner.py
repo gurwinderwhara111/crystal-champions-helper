@@ -100,13 +100,77 @@ def best_move(grid: List[List[str]], level: int = 1, score: float = 0.0,
               time_left: float = 180.0, lookahead: int = 6) -> Optional[Dict[str, Any]]:
     """
     Two-ply best move (docs/CONTRACTS.md §2).
+    
+    NEW: First checks for special gem patterns (Void, Starlight, Fire),
+    then falls back to normal 3-match detection.
 
     Returns None when there is no legal move, else:
       {"move", "points", "followup", "combined", "chain", "specials",
-       "detonations", "level_ups"}
+       "detonations", "level_ups", "pattern_type", "is_pattern"}
 
     Never mutates `grid`.
     """
+    
+    # ── NEW: Check for special gem patterns first ──────────────────────
+    # Only if grid is valid (has no holes or unknowns that break pattern detection)
+    has_unknown = any(cell == '?' or cell is None for row in grid for cell in row)
+    
+    if not has_unknown:
+        try:
+            # Convert long names to short codes for pattern detector
+            short_grid = []
+            for row in grid:
+                short_row = []
+                for cell in row:
+                    if cell in DET_TO_GAME:
+                        short_row.append(DET_TO_GAME[cell])
+                    elif cell in COLOURS:
+                        short_row.append(cell)
+                    else:
+                        short_row.append('?')
+                short_grid.append(short_row)
+            
+            # Check patterns
+            from bot.pattern_detector import PatternDetector, PatternType
+            detector = PatternDetector()
+            opportunities = detector.find_all_opportunities(short_grid)
+            
+            if opportunities:
+                best_opp = opportunities[0]
+                r, c = best_opp.swap_position
+                
+                # Convert swap direction to second position
+                direction_map = {
+                    'right': (r, c + 1),
+                    'left': (r, c - 1),
+                    'down': (r + 1, c),
+                    'up': (r - 1, c)
+                }
+                r2, c2 = direction_map.get(best_opp.swap_direction, (r, c))
+                
+                # Validate bounds
+                if 0 <= r2 < 8 and 0 <= c2 < 8:
+                    # Convert back to long names for move format
+                    long_codes = {v: k for k, v in DET_TO_GAME.items()}
+                    
+                    return {
+                        "move": (r, c, r2, c2),
+                        "points": 0,  # Pattern creation
+                        "combined": 1000,  # High priority
+                        "chain": 0,
+                        "specials": 0,
+                        "detonations": 0,
+                        "level_ups": 0,
+                        "followup": None,
+                        "pattern_type": best_opp.pattern_type.value,
+                        "is_pattern": True,
+                        "pattern_description": best_opp.description
+                    }
+        except Exception as e:
+            # If pattern detection fails, continue with normal planning
+            pass
+    
+    # ── ORIGINAL: Normal 3-match detection ─────────────────────────────
     game = grid_to_game(grid, level=level, score=score, time_left=time_left)
     moves = game.legal_moves()
     if not moves:

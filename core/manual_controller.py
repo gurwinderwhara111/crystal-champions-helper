@@ -163,6 +163,7 @@ class ManualController:
 
         from detector.grid import get_classifier, read_grid, capture_region
         from bot.planner import best_move
+        from bot.pattern_detector import PatternDetector, PatternType
 
         # Warm-start the classifier (first call is ~7 s)
         try:
