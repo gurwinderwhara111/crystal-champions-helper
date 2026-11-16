@@ -334,6 +334,7 @@ class ArrowOverlay:
         a: tuple[int, int],
         b: tuple[int, int],
         label: str = "",
+        colour: str = None,
     ) -> None:
         """Draw an arrow a -> b with rings and an optional label. Non-blocking."""
         if self._destroyed:
@@ -344,7 +345,7 @@ class ArrowOverlay:
         b = (int(b[0]), int(b[1]))
         self._last_move = (a, b, label)
         self.canvas.delete("all")
-        self._draw(a, b, label)
+        self._draw(a, b, label, colour)  # Pass colour!
         self._show_window()
 
     def show_moves(

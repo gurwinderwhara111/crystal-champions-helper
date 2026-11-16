@@ -248,19 +248,19 @@ class ManualUI:
         if result.get("is_pattern"):
             pattern_type = result.get("pattern_type", "")
             if pattern_type == "void":
-                color = "red"
+                color = "#ff0000"  # Red
                 label = "VOID"
                 print(f"[MAIN] Showing RED arrow for VOID")
             elif pattern_type == "starlight_t" or pattern_type == "starlight_l":
-                color = "blue"
+                color = "#0088ff"  # Blue
                 label = "STARLIGHT"
                 print(f"[MAIN] Showing BLUE arrow for STARLIGHT")
             elif pattern_type == "fire":
-                color = "orange"
+                color = "#ff8800"  # Orange
                 label = "FIRE"
                 print(f"[MAIN] Showing ORANGE arrow for FIRE")
             else:
-                color = "green"
+                color = None  # Default green
                 label = ""
                 print(f"[MAIN] Showing GREEN arrow (unknown pattern)")
             
